@@ -1,0 +1,20 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: db-ui
+
+dbui:
+  cassandra:
+    host: 127.0.0.1
+    port: 9042
+    local-datacenter: datacenter1
+  opensearch:
+    url: http://127.0.0.1:9200
+    username: ""
+    password: ""
+
+logging:
+  level:
+    com.dbui: INFO

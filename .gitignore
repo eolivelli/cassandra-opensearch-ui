@@ -1,0 +1,53 @@
+# ---- Maven / build output ----
+target/
+build/
+*.jar
+*.war
+*.ear
+*.class
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# ---- Logs & temp ----
+*.log
+*.tmp
+*.pid
+hs_err_pid*
+replay_pid*
+
+# ---- IDE: IntelliJ IDEA ----
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# ---- IDE: Eclipse ----
+.settings/
+.project
+.classpath
+.factorypath
+.apt_generated/
+
+# ---- IDE: VS Code / NetBeans ----
+.vscode/
+nbproject/private/
+nb-configuration.xml
+
+# ---- OS files ----
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+desktop.ini
+
+# ---- Local environment ----
+*.local
+.env

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>DB UI</title>
+    <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<header class="topbar">
+    <div class="brand">
+        <span class="logo">▤</span>
+        <div>
+            <h1>DB UI</h1>
+            <p class="tagline">Read-only console for Cassandra &amp; OpenSearch</p>
+        </div>
+    </div>
+    <nav class="tabs">
+        <button class="tab active" data-source="cassandra">Cassandra</button>
+        <button class="tab" data-source="opensearch">OpenSearch</button>
+    </nav>
+</header>
+
+<main class="layout">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <span id="sidebar-title">Keyspaces</span>
+            <button id="refresh-btn" title="Refresh">⟳</button>
+        </div>
+        <div id="tree" class="tree"></div>
+    </aside>
+
+    <section class="content">
+        <div id="breadcrumb" class="breadcrumb">Select an item on the left to begin.</div>
+
+        <div id="view-switch" class="view-switch hidden"></div>
+
+        <div id="request-panel" class="request-panel hidden">
+            <div class="request-header">
+                <span id="request-label">Request</span>
+                <button id="copy-btn" class="copy-btn">Copy</button>
+            </div>
+            <pre id="request-text"></pre>
+        </div>
+
+        <div class="controls hidden" id="controls">
+            <label for="limit">Max rows</label>
+            <select id="limit">
+                <option>25</option>
+                <option selected>50</option>
+                <option>100</option>
+                <option>250</option>
+                <option>500</option>
+                <option>1000</option>
+            </select>
+            <span id="result-meta" class="result-meta"></span>
+        </div>
+
+        <div id="message" class="message hidden"></div>
+
+        <div id="result" class="result"></div>
+    </section>
+</main>
+
+<div id="drawer-overlay" class="drawer-overlay hidden">
+    <aside class="drawer" role="dialog" aria-modal="true">
+        <div class="drawer-header">
+            <span id="drawer-title">Detail</span>
+            <button id="drawer-close" class="drawer-close" title="Close">✕</button>
+        </div>
+        <div id="drawer-body" class="drawer-body"></div>
+    </aside>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
