@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Enrico Olivelli
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.dbui.opensearch;
 
 import com.dbui.model.OsDocument;
@@ -93,8 +108,8 @@ public class OpenSearchService {
         JsonNode body = response.isObject() && response.size() > 0
                 ? response.fields().next().getValue()
                 : response;
-        return new OsIndexSchema(request,
-                body.path("mappings"), body.path("settings"), body.path("aliases"));
+        return new OsIndexSchema(request, body.path("mappings"), body.path("settings"),
+                body.path("aliases"));
     }
 
     /** Fetches a single document by id. */
@@ -106,6 +121,6 @@ public class OpenSearchService {
         return new OsDocument(request, id, found, response.path("_source"));
     }
 
-    private static final com.fasterxml.jackson.core.type.TypeReference<LinkedHashMap<String, Object>>
-            MAP_TYPE = new com.fasterxml.jackson.core.type.TypeReference<>() {};
+    private static final com.fasterxml.jackson.core.type.TypeReference<LinkedHashMap<String, Object>> MAP_TYPE = new com.fasterxml.jackson.core.type.TypeReference<>() {
+    };
 }

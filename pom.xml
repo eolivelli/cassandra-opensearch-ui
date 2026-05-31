@@ -96,6 +96,54 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
+
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>2.44.5</version>
+                <configuration>
+                    <java>
+                        <includes>
+                            <include>src/main/java/**/*.java</include>
+                            <include>src/test/java/**/*.java</include>
+                        </includes>
+                        <!-- The Eclipse JDT formatter is used because, on JDK 25,
+                             google-/palantir-java-format cannot access the changed
+                             javac internals (NoSuchMethodError). -->
+                        <eclipse>
+                            <file>${project.basedir}/spotless/eclipse-formatter.prefs</file>
+                        </eclipse>
+                        <removeUnusedImports>
+                            <engine>cleanthat-javaparser-unnecessaryimport</engine>
+                        </removeUnusedImports>
+                        <importOrder/>
+                        <licenseHeader>
+                            <file>${project.basedir}/spotless/license-header.txt</file>
+                        </licenseHeader>
+                    </java>
+                    <!-- Front-end and config files: enforce whitespace hygiene. -->
+                    <formats>
+                        <format>
+                            <includes>
+                                <include>src/main/resources/static/*.js</include>
+                                <include>src/main/resources/static/*.css</include>
+                                <include>src/main/resources/static/*.html</include>
+                                <include>src/main/resources/*.yml</include>
+                                <include>*.md</include>
+                            </includes>
+                            <trimTrailingWhitespace/>
+                            <endWithNewline/>
+                        </format>
+                    </formats>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 </project>

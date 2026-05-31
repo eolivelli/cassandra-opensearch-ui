@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Enrico Olivelli
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.dbui.cassandra;
 
 import com.datastax.oss.driver.api.core.CqlIdentifier;
@@ -32,9 +47,8 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 
 /**
- * Read-only access to a Cassandra cluster. Every method returns the exact CQL it
- * executed (or, for schema, the CREATE statements) alongside the data, so the UI
- * can show users how to reproduce it.
+ * Read-only access to a Cassandra cluster. Every method returns the exact CQL it executed (or, for
+ * schema, the CREATE statements) alongside the data, so the UI can show users how to reproduce it.
  */
 @Service
 public class CassandraService {
@@ -57,20 +71,19 @@ public class CassandraService {
 
     /** Lists the tables of a keyspace. */
     public CqlResult listTables(String keyspace) {
-        String cql = "SELECT table_name FROM system_schema.tables "
-                + "WHERE keyspace_name = '" + escape(keyspace) + "'";
-        RawResult raw = run(SimpleStatement.builder(
-                        "SELECT table_name FROM system_schema.tables WHERE keyspace_name = ?")
-                .addPositionalValue(keyspace)
-                .build());
+        String cql = "SELECT table_name FROM system_schema.tables " + "WHERE keyspace_name = '"
+                + escape(keyspace) + "'";
+        RawResult raw = run(SimpleStatement
+                .builder("SELECT table_name FROM system_schema.tables WHERE keyspace_name = ?")
+                .addPositionalValue(keyspace).build());
         return CqlResult.of(cql, raw.columns(), raw.rows());
     }
 
     /** Returns up to {@code limit} rows from a table, with its primary-key columns. */
     public TableRows tableRows(String keyspace, String table, int limit) {
         int effectiveLimit = Math.min(Math.max(limit, 1), MAX_ROWS);
-        String cql = "SELECT * FROM " + quote(keyspace) + "." + quote(table)
-                + " LIMIT " + effectiveLimit;
+        String cql = "SELECT * FROM " + quote(keyspace) + "." + quote(table) + " LIMIT "
+                + effectiveLimit;
         RawResult raw = run(SimpleStatement.newInstance(cql));
         List<String> primaryKey = primaryKeyColumns(keyspace, table);
         return new TableRows(cql, raw.columns(), primaryKey, raw.rows(), raw.rows().size());
@@ -81,10 +94,9 @@ public class CassandraService {
         TableMetadata tbl = tableMetadata(keyspace, table);
 
         Map<String, ClusteringOrder> clustering = new LinkedHashMap<>();
-        tbl.getClusteringColumns().forEach((col, order) ->
-                clustering.put(col.getName().asInternal(), order));
-        List<String> partition = tbl.getPartitionKey().stream()
-                .map(c -> c.getName().asInternal())
+        tbl.getClusteringColumns()
+                .forEach((col, order) -> clustering.put(col.getName().asInternal(), order));
+        List<String> partition = tbl.getPartitionKey().stream().map(c -> c.getName().asInternal())
                 .toList();
 
         List<CassandraSchema.Column> columns = new ArrayList<>();
@@ -103,8 +115,8 @@ public class CassandraService {
             } else {
                 kind = "REGULAR";
             }
-            columns.add(new CassandraSchema.Column(
-                    name, col.getType().asCql(true, true), kind, order));
+            columns.add(
+                    new CassandraSchema.Column(name, col.getType().asCql(true, true), kind, order));
             collectUdts(col.getType(), udts);
         }
 
@@ -112,18 +124,18 @@ public class CassandraService {
         for (IndexMetadata idx : tbl.getIndexes().values()) {
             String className = idx.getClassName().orElse(null);
             String kind = className != null && className.endsWith("StorageAttachedIndex")
-                    ? "SAI" : idx.getKind().name();
-            indexes.add(new CassandraSchema.Index(
-                    idx.getName().asInternal(), kind, idx.getTarget(), className,
-                    new LinkedHashMap<>(idx.getOptions())));
+                    ? "SAI"
+                    : idx.getKind().name();
+            indexes.add(new CassandraSchema.Index(idx.getName().asInternal(), kind, idx.getTarget(),
+                    className, new LinkedHashMap<>(idx.getOptions())));
         }
 
         List<CassandraSchema.Udt> types = udts.values().stream()
                 .map(u -> new CassandraSchema.Udt(u.getName().asInternal(), u.describe(true)))
                 .toList();
 
-        return new CassandraSchema(keyspace, table,
-                tbl.describeWithChildren(true), columns, indexes, types);
+        return new CassandraSchema(keyspace, table, tbl.describeWithChildren(true), columns,
+                indexes, types);
     }
 
     private List<String> primaryKeyColumns(String keyspace, String table) {
@@ -139,9 +151,8 @@ public class CassandraService {
         KeyspaceMetadata ks = session.getMetadata()
                 .getKeyspace(CqlIdentifier.fromInternal(keyspace))
                 .orElseThrow(() -> new IllegalArgumentException("Keyspace not found: " + keyspace));
-        return ks.getTable(CqlIdentifier.fromInternal(table))
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Table not found: " + keyspace + "." + table));
+        return ks.getTable(CqlIdentifier.fromInternal(table)).orElseThrow(
+                () -> new IllegalArgumentException("Table not found: " + keyspace + "." + table));
     }
 
     /** Recursively collects user-defined types reachable from a column type. */
@@ -211,8 +222,8 @@ public class CassandraService {
         }
         if (value instanceof UdtValue udt) {
             Map<String, Object> map = new LinkedHashMap<>();
-            udt.getType().getFieldNames().forEach(name ->
-                    map.put(name.asInternal(), toJsonValue(udt.getObject(name))));
+            udt.getType().getFieldNames()
+                    .forEach(name -> map.put(name.asInternal(), toJsonValue(udt.getObject(name))));
             return map;
         }
         if (value instanceof TupleValue tuple) {

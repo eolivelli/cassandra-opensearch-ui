@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Enrico Olivelli
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.dbui.cassandra;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -18,8 +33,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
- * Integration tests for {@link CassandraService} against a real Cassandra 5
- * container.
+ * Integration tests for {@link CassandraService} against a real Cassandra 5 container.
  */
 @Testcontainers
 class CassandraServiceTest {
@@ -36,10 +50,8 @@ class CassandraServiceTest {
         String datacenter = CASSANDRA.getLocalDatacenter();
 
         // Seed schema and data.
-        try (CqlSession session = CqlSession.builder()
-                .addContactPoint(contactPoint)
-                .withLocalDatacenter(datacenter)
-                .build()) {
+        try (CqlSession session = CqlSession.builder().addContactPoint(contactPoint)
+                .withLocalDatacenter(datacenter).build()) {
             session.execute("CREATE KEYSPACE IF NOT EXISTS shop "
                     + "WITH replication = {'class':'SimpleStrategy','replication_factor':1}");
             session.execute("CREATE TABLE shop.products "
@@ -71,8 +83,7 @@ class CassandraServiceTest {
         CqlResult result = service.listKeyspaces();
 
         assertThat(result.cql()).contains("system_schema.keyspaces");
-        List<String> names = result.rows().stream()
-                .map(r -> (String) r.get("keyspace_name"))
+        List<String> names = result.rows().stream().map(r -> (String) r.get("keyspace_name"))
                 .toList();
         assertThat(names).contains("shop", "system");
     }
@@ -82,8 +93,7 @@ class CassandraServiceTest {
         CqlResult result = service.listTables("shop");
 
         assertThat(result.cql()).contains("system_schema.tables");
-        List<String> tables = result.rows().stream()
-                .map(r -> (String) r.get("table_name"))
+        List<String> tables = result.rows().stream().map(r -> (String) r.get("table_name"))
                 .toList();
         assertThat(tables).containsExactly("products");
     }
@@ -98,9 +108,7 @@ class CassandraServiceTest {
         assertThat(result.rowCount()).isEqualTo(2);
 
         Map<String, Object> keyboard = result.rows().stream()
-                .filter(r -> Integer.valueOf(1).equals(r.get("id")))
-                .findFirst()
-                .orElseThrow();
+                .filter(r -> Integer.valueOf(1).equals(r.get("id"))).findFirst().orElseThrow();
         assertThat(keyboard.get("name")).isEqualTo("Keyboard");
         assertThat(keyboard.get("in_stock")).isEqualTo(true);
     }
@@ -116,10 +124,8 @@ class CassandraServiceTest {
     @Test
     void describesSchemaWithIndexesAndUdts() {
         // Add a UDT, an extra table using it, and a SAI index to exercise the schema view.
-        try (CqlSession session = CqlSession.builder()
-                .addContactPoint(CASSANDRA.getContactPoint())
-                .withLocalDatacenter(CASSANDRA.getLocalDatacenter())
-                .build()) {
+        try (CqlSession session = CqlSession.builder().addContactPoint(CASSANDRA.getContactPoint())
+                .withLocalDatacenter(CASSANDRA.getLocalDatacenter()).build()) {
             session.execute("CREATE TYPE IF NOT EXISTS shop.address "
                     + "(street text, city text, country text)");
             session.execute("CREATE TABLE IF NOT EXISTS shop.customers "
@@ -130,19 +136,16 @@ class CassandraServiceTest {
 
         CassandraSchema schema = service.tableSchema("shop", "customers");
 
-        assertThat(schema.columns())
-                .anySatisfy(c -> {
-                    assertThat(c.name()).isEqualTo("id");
-                    assertThat(c.kind()).isEqualTo("PARTITION_KEY");
-                });
-        assertThat(schema.indexes())
-                .anySatisfy(i -> {
-                    assertThat(i.name()).isEqualTo("customers_name_sai");
-                    assertThat(i.kind()).isEqualTo("SAI");
-                    assertThat(i.target()).isEqualTo("name");
-                });
-        assertThat(schema.types())
-                .anySatisfy(t -> assertThat(t.name()).isEqualTo("address"));
+        assertThat(schema.columns()).anySatisfy(c -> {
+            assertThat(c.name()).isEqualTo("id");
+            assertThat(c.kind()).isEqualTo("PARTITION_KEY");
+        });
+        assertThat(schema.indexes()).anySatisfy(i -> {
+            assertThat(i.name()).isEqualTo("customers_name_sai");
+            assertThat(i.kind()).isEqualTo("SAI");
+            assertThat(i.target()).isEqualTo("name");
+        });
+        assertThat(schema.types()).anySatisfy(t -> assertThat(t.name()).isEqualTo("address"));
         assertThat(schema.createStatement()).contains("CREATE TABLE shop.customers");
     }
 }

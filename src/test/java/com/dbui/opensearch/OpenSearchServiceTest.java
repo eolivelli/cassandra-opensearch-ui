@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Enrico Olivelli
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.dbui.opensearch;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -18,25 +33,22 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 /**
- * Integration tests for {@link OpenSearchService} against a real OpenSearch
- * container (security plugin disabled).
+ * Integration tests for {@link OpenSearchService} against a real OpenSearch container (security
+ * plugin disabled).
  */
 @Testcontainers
 class OpenSearchServiceTest {
 
-    private static final String IMAGE =
-            System.getProperty("opensearch.image", "opensearchproject/opensearch:3.6.0");
+    private static final String IMAGE = System.getProperty("opensearch.image",
+            "opensearchproject/opensearch:3.6.0");
 
     @Container
-    static final GenericContainer<?> OPENSEARCH =
-            new GenericContainer<>(DockerImageName.parse(IMAGE))
-                    .withExposedPorts(9200)
-                    .withEnv("discovery.type", "single-node")
-                    .withEnv("DISABLE_SECURITY_PLUGIN", "true")
-                    .withEnv("OPENSEARCH_JAVA_OPTS", "-Xms512m -Xmx512m")
-                    .waitingFor(Wait.forHttp("/_cluster/health")
-                            .forStatusCode(200)
-                            .withStartupTimeout(Duration.ofMinutes(4)));
+    static final GenericContainer<?> OPENSEARCH = new GenericContainer<>(
+            DockerImageName.parse(IMAGE)).withExposedPorts(9200)
+            .withEnv("discovery.type", "single-node").withEnv("DISABLE_SECURITY_PLUGIN", "true")
+            .withEnv("OPENSEARCH_JAVA_OPTS", "-Xms512m -Xmx512m")
+            .waitingFor(Wait.forHttp("/_cluster/health").forStatusCode(200)
+                    .withStartupTimeout(Duration.ofMinutes(4)));
 
     static final ObjectMapper MAPPER = new ObjectMapper();
     static OpenSearchService service;
@@ -63,9 +75,7 @@ class OpenSearchServiceTest {
         assertThat(result.request().method()).isEqualTo("GET");
         assertThat(result.request().path()).contains("/_cat/indices");
 
-        List<String> names = result.indices().stream()
-                .map(i -> (String) i.get("index"))
-                .toList();
+        List<String> names = result.indices().stream().map(i -> (String) i.get("index")).toList();
         assertThat(names).contains("products");
     }
 
@@ -79,9 +89,7 @@ class OpenSearchServiceTest {
         assertThat(result.total()).isEqualTo(2);
         assertThat(result.columns()).contains("_id", "name", "price", "in_stock");
 
-        List<String> names = result.documents().stream()
-                .map(d -> (String) d.get("name"))
-                .toList();
+        List<String> names = result.documents().stream().map(d -> (String) d.get("name")).toList();
         assertThat(names).containsExactlyInAnyOrder("Keyboard", "Mouse");
     }
 

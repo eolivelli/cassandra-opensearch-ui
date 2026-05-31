@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Enrico Olivelli
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.dbui.cassandra;
 
 import com.datastax.oss.driver.api.core.CqlSession;
@@ -9,9 +24,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * Lazily creates and caches a {@link CqlSession}. The session is only opened on
- * the first request that needs it, so the web application starts cleanly even
- * when Cassandra is not (yet) running.
+ * Lazily creates and caches a {@link CqlSession}. The session is only opened on the first request
+ * that needs it, so the web application starts cleanly even when Cassandra is not (yet) running.
  */
 @Component
 public class CassandraSessionProvider {
@@ -26,8 +40,8 @@ public class CassandraSessionProvider {
     }
 
     /**
-     * Returns a live session, creating it on demand. Throws if Cassandra cannot
-     * be reached, so callers can surface a meaningful error to the UI.
+     * Returns a live session, creating it on demand. Throws if Cassandra cannot be reached, so
+     * callers can surface a meaningful error to the UI.
      */
     public CqlSession session() {
         CqlSession local = session;
@@ -36,12 +50,12 @@ public class CassandraSessionProvider {
         }
         synchronized (this) {
             if (session == null || session.isClosed()) {
-                log.info("Opening Cassandra session to {}:{} (dc={})",
-                        properties.getHost(), properties.getPort(), properties.getLocalDatacenter());
+                log.info("Opening Cassandra session to {}:{} (dc={})", properties.getHost(),
+                        properties.getPort(), properties.getLocalDatacenter());
                 session = CqlSession.builder()
-                        .addContactPoint(new InetSocketAddress(properties.getHost(), properties.getPort()))
-                        .withLocalDatacenter(properties.getLocalDatacenter())
-                        .build();
+                        .addContactPoint(
+                                new InetSocketAddress(properties.getHost(), properties.getPort()))
+                        .withLocalDatacenter(properties.getLocalDatacenter()).build();
             }
             return session;
         }

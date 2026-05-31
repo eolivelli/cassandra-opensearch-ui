@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Enrico Olivelli
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.dbui.opensearch;
 
 import com.dbui.config.OpenSearchProperties;
@@ -14,9 +29,8 @@ import java.util.Base64;
 import org.springframework.stereotype.Component;
 
 /**
- * Thin wrapper over the OpenSearch HTTP REST API using the JDK {@link HttpClient}.
- * Working at the raw-REST level keeps the exact requests visible, which is what
- * the UI surfaces to users.
+ * Thin wrapper over the OpenSearch HTTP REST API using the JDK {@link HttpClient}. Working at the
+ * raw-REST level keeps the exact requests visible, which is what the UI surfaces to users.
  */
 @Component
 public class OpenSearchClient {
@@ -28,9 +42,7 @@ public class OpenSearchClient {
     public OpenSearchClient(OpenSearchProperties properties, ObjectMapper mapper) {
         this.properties = properties;
         this.mapper = mapper;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(5))
-                .build();
+        this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
     }
 
     /** Performs a GET and parses the JSON response body. */
@@ -40,8 +52,7 @@ public class OpenSearchClient {
 
     /** Performs a POST with a JSON body and parses the JSON response. */
     public JsonNode post(String path, String jsonBody) {
-        HttpRequest request = baseRequest(path)
-                .header("Content-Type", "application/json")
+        HttpRequest request = baseRequest(path).header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(jsonBody, StandardCharsets.UTF_8))
                 .build();
         return send(request);
@@ -49,12 +60,12 @@ public class OpenSearchClient {
 
     private HttpRequest.Builder baseRequest(String path) {
         HttpRequest.Builder builder = HttpRequest.newBuilder()
-                .uri(URI.create(properties.getUrl() + path))
-                .timeout(Duration.ofSeconds(30))
+                .uri(URI.create(properties.getUrl() + path)).timeout(Duration.ofSeconds(30))
                 .header("Accept", "application/json");
         if (properties.getUsername() != null && !properties.getUsername().isBlank()) {
             String token = properties.getUsername() + ":" + properties.getPassword();
-            String encoded = Base64.getEncoder().encodeToString(token.getBytes(StandardCharsets.UTF_8));
+            String encoded = Base64.getEncoder()
+                    .encodeToString(token.getBytes(StandardCharsets.UTF_8));
             builder.header("Authorization", "Basic " + encoded);
         }
         return builder;
@@ -62,14 +73,16 @@ public class OpenSearchClient {
 
     private JsonNode send(HttpRequest request) {
         try {
-            HttpResponse<String> response =
-                    httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            HttpResponse<String> response = httpClient.send(request,
+                    HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             String body = response.body();
             if (response.statusCode() >= 400) {
                 throw new OpenSearchException(
                         "OpenSearch returned HTTP " + response.statusCode() + ": " + body);
             }
-            return body == null || body.isBlank() ? mapper.createObjectNode() : mapper.readTree(body);
+            return body == null || body.isBlank()
+                    ? mapper.createObjectNode()
+                    : mapper.readTree(body);
         } catch (IOException e) {
             throw new OpenSearchException("Failed to call OpenSearch: " + e.getMessage(), e);
         } catch (InterruptedException e) {

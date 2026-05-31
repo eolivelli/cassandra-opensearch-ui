@@ -126,11 +126,28 @@ Cassandra 5 and OpenSearch 3.6 containers (independent of `docker compose`), see
 and assert the service layer returns the right rows/documents and the right CQL/REST
 request. The OpenSearch image is ~1 GB, so the first run downloads it.
 
+## Code style
+
+Formatting is enforced with the [Spotless](https://github.com/diffplug/spotless) Maven
+plugin, which also applies the Apache 2.0 license header to source files.
+
+```bash
+mvn spotless:check    # verify formatting (also runs automatically during `mvn verify`)
+mvn spotless:apply    # auto-format and add/refresh license headers
+```
+
+Java is formatted with the **Eclipse JDT formatter** (config in
+`spotless/eclipse-formatter.prefs`). It is used instead of google-/palantir-java-format
+because, on JDK 25, those rely on `javac` internals that changed and fail to run.
+`.mvn/jvm.config` adds the `--add-exports`/`--add-opens` flags some Spotless steps need.
+
 ## Project layout
 
 ```
 db-ui/
 ├── docker-compose.yml            # Cassandra 5 + OpenSearch 3.6 for local use
+├── spotless/                     # Spotless config (license header, Eclipse formatter)
+├── .mvn/jvm.config               # JVM flags needed by Spotless on JDK 25
 ├── scripts/seed-sample-data.sh   # optional simple sample data
 ├── scripts/seed-demo.sh          # optional rich demo (UDTs, SAI, non-trivial OS mapping)
 ├── src/main/java/com/dbui/
