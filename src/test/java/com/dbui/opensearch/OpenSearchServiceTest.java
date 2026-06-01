@@ -17,38 +17,21 @@ package com.dbui.opensearch;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.dbui.AbstractIntegrationTest;
 import com.dbui.config.OpenSearchProperties;
 import com.dbui.model.OsDocumentsResult;
 import com.dbui.model.OsIndicesResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 /**
- * Integration tests for {@link OpenSearchService} against a real OpenSearch container (security
- * plugin disabled).
+ * Integration tests for {@link OpenSearchService} against a real OpenSearch container launched by
+ * Testcontainers (see {@link AbstractIntegrationTest}).
  */
-@Testcontainers
-class OpenSearchServiceTest {
-
-    private static final String IMAGE = System.getProperty("opensearch.image",
-            "opensearchproject/opensearch:3.6.0");
-
-    @Container
-    static final GenericContainer<?> OPENSEARCH = new GenericContainer<>(
-            DockerImageName.parse(IMAGE)).withExposedPorts(9200)
-            .withEnv("discovery.type", "single-node").withEnv("DISABLE_SECURITY_PLUGIN", "true")
-            .withEnv("OPENSEARCH_JAVA_OPTS", "-Xms512m -Xmx512m")
-            .waitingFor(Wait.forHttp("/_cluster/health").forStatusCode(200)
-                    .withStartupTimeout(Duration.ofMinutes(4)));
+class OpenSearchServiceTest extends AbstractIntegrationTest {
 
     static final ObjectMapper MAPPER = new ObjectMapper();
     static OpenSearchService service;
@@ -56,7 +39,7 @@ class OpenSearchServiceTest {
     @BeforeAll
     static void setUp() {
         OpenSearchProperties props = new OpenSearchProperties();
-        props.setUrl("http://" + OPENSEARCH.getHost() + ":" + OPENSEARCH.getMappedPort(9200));
+        props.setUrl(OPENSEARCH.getHttpHostAddress());
 
         OpenSearchClient client = new OpenSearchClient(props, MAPPER);
         service = new OpenSearchService(client, MAPPER);

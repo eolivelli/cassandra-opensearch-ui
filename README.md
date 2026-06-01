@@ -121,10 +121,19 @@ Row/document counts are capped at 1000 per request.
 mvn test
 ```
 
-The tests use Testcontainers, so Docker must be running. They start their own
-Cassandra 5 and OpenSearch 3.6 containers (independent of `docker compose`), seed data,
-and assert the service layer returns the right rows/documents and the right CQL/REST
-request. The OpenSearch image is ~1 GB, so the first run downloads it.
+The tests use **Testcontainers** to launch the databases, so Docker must be running — no
+externally running Cassandra/OpenSearch is needed (they are independent of `docker compose`).
+A shared base class (`AbstractIntegrationTest`) starts a real **Cassandra 5**
+(`org.testcontainers:cassandra`) and a real **OpenSearch 3.6**
+(`org.opensearch:opensearch-testcontainers`) once and reuses them across all tests.
+
+- `CassandraServiceTest` / `OpenSearchServiceTest` — service-layer tests against the
+  containers.
+- `DbUiIntegrationTest` — a full-stack `@SpringBootTest` that boots the whole application,
+  wires it to the Testcontainers databases via `@DynamicPropertySource`, and drives it
+  through its HTTP REST API.
+
+The OpenSearch image is ~1 GB, so the first run downloads it.
 
 ## Code style
 
@@ -156,5 +165,7 @@ db-ui/
 │   ├── model/                    # response records (CqlResult, Os*Result)
 │   ├── config/                   # connection properties
 │   └── web/                      # JSON error handling
-└── src/main/resources/static/    # the single-page UI (index.html, app.js, style.css)
+├── src/main/resources/static/    # the single-page UI (index.html, app.js, style.css)
+└── src/test/java/com/dbui/       # Testcontainers integration tests
+    └── AbstractIntegrationTest   # launches Cassandra + OpenSearch once, shared by all tests
 ```

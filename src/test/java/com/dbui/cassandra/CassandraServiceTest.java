@@ -18,6 +18,7 @@ package com.dbui.cassandra;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.datastax.oss.driver.api.core.CqlSession;
+import com.dbui.AbstractIntegrationTest;
 import com.dbui.config.CassandraProperties;
 import com.dbui.model.CassandraSchema;
 import com.dbui.model.CqlResult;
@@ -28,18 +29,12 @@ import java.util.Map;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.cassandra.CassandraContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
- * Integration tests for {@link CassandraService} against a real Cassandra 5 container.
+ * Integration tests for {@link CassandraService} against a real Cassandra 5 container launched by
+ * Testcontainers (see {@link AbstractIntegrationTest}).
  */
-@Testcontainers
-class CassandraServiceTest {
-
-    @Container
-    static final CassandraContainer CASSANDRA = new CassandraContainer("cassandra:5.0");
+class CassandraServiceTest extends AbstractIntegrationTest {
 
     static CassandraSessionProvider provider;
     static CassandraService service;
