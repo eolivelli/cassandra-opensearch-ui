@@ -15,6 +15,12 @@ buildNumber.properties
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
 
+# ---- Front-end (React/Vite) ----
+node_modules/
+.vite/
+npm-debug.log*
+yarn-error.log*
+
 # ---- Logs & temp ----
 *.log
 *.tmp

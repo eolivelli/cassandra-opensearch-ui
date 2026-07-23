@@ -1,81 +1,67 @@
-# DB UI
+# Cassandra + OpenSearch demos
 
-A small web console to inspect the contents of two databases running locally, plus
-ad-hoc **query pages** for running your own statements against them:
+A small monorepo with two applications that run against the **same** local
+**Apache Cassandra 5** and **OpenSearch 3.x**, showing two very different ways to use them:
 
-- **Apache Cassandra 5**
-- **OpenSearch 3.6.x** (works with 3.5 too)
+| Module      | What it is                                                                                  | Port  |
+|-------------|---------------------------------------------------------------------------------------------|-------|
+| **`dbui`**  | **DB UI** — a read-only web console to browse Cassandra & OpenSearch, plus ad-hoc query pages | 8080  |
+| **`store`** | **H2O Store** — a demo e-commerce app (aquariums, gear & live tropical fish) that uses Cassandra as its system of record and OpenSearch for the site search | 8081  |
+| **`store-cli`** | a command-line tool that ingests products (JSON Lines) into Cassandra **and** OpenSearch | —     |
 
-The browsing screens are read-only; the query pages can run **any** statement you type
-(including DDL/DML on Cassandra and write requests on OpenSearch), so use them with the
-same care you would a shell.
+The interesting bit is the **H2O Store**: it demonstrates Cassandra and OpenSearch working
+**together** in one application. Cassandra is the system of record — products, customers,
+shopping carts and orders — while OpenSearch powers the one feature Cassandra is not good
+at: free-text product search with relevance ranking and fuzziness.
 
-There is **no authentication** — it is meant for local development against databases
-running in Docker on your machine.
+See each module's own README for details:
 
-Every screen shows the exact **CQL** statement or **OpenSearch REST API** request that
-produced the data, so you can copy it and reproduce it yourself.
-
-## Features
-
-- List Cassandra keyspaces and their tables, and browse table contents.
-- **Cassandra table schema:** columns (with partition-key / clustering / static markers),
-  indexes (including **SAI** / StorageAttachedIndex), the **user-defined types** the table
-  uses, and the full `CREATE TABLE` statement.
-- **Cassandra row detail:** click a row to open it in a drawer showing every column in full,
-  with a ready-to-run `SELECT … WHERE <primary key>` to fetch just that row.
-- List OpenSearch indices and browse the documents inside them.
-- **OpenSearch index mapping:** view the field mappings and settings (`GET /{index}`).
-- **OpenSearch document detail:** click a row to see the full `_source` JSON
-  (`GET /{index}/_doc/{id}`).
-- Each view displays the underlying CQL / REST request (with a copy button).
-- Adjustable row/document limit.
-- **CQL Query page:** run any CQL statement (SELECT, DDL or DML) and see the whole
-  result at once (no paging). SELECTs render as a table; DDL/DML report success.
-- **OS Query page:** run any OpenSearch REST call — pick the HTTP method, enter the path
-  (relative to the base URL) and an optional JSON body. The raw status and response JSON
-  are shown, including for error responses (e.g. a 404).
-- **Query history:** every command you run on a query page is saved to a local file
-  (the command only — never the results) and listed in the sidebar, newest first. Click
-  one to load it back into the editor and re-run it; use the 🗑 button to clear it.
-
-## Tech stack
-
-- **Backend:** Java 25, Spring Boot 3.5, Maven.
-  - Cassandra access via the DataStax Java Driver 4.
-  - OpenSearch access via the **raw REST API** (JDK `HttpClient` + Jackson) — this keeps
-    the exact HTTP requests visible, which is what the UI displays.
-- **Frontend:** a single-page app built with plain HTML/CSS/JS (no build step), served as
-  static resources by Spring Boot.
-- **Tests:** JUnit 5 + Testcontainers, spinning up real Cassandra 5 and OpenSearch 3.6
-  containers.
+- [`dbui/README.md`](dbui/README.md) — the DB UI console
+- [`store/README.md`](store/README.md) — the H2O Store (architecture, data model, REST API)
+- [`store-cli/README.md`](store-cli/README.md) — the ingest CLI
 
 ## Prerequisites
 
 - JDK **25**
-- Maven 3.9+
+- Maven **3.9+**
 - Docker (with the `docker compose` plugin)
+
+> The **`store`** module builds a React/Vite front-end. The Maven build downloads a local
+> Node/npm toolchain automatically (via `frontend-maven-plugin`), so no global Node install
+> is required — but the first build needs network access to fetch Node and the npm packages.
 
 ## Quick start
 
 ```bash
-# 1. Start the databases (Cassandra on :9042, OpenSearch on :9200)
+# 1. Start the shared databases (Cassandra on :9042, OpenSearch on :9200)
 docker compose up -d
 
-# 2. (Optional) load sample data so there is something to see.
-./scripts/seed-sample-data.sh   # a simple shop.products table + products index
-./scripts/seed-demo.sh          # richer demo: UDTs + SAI indexes, and an OpenSearch
-                                # index sharing the name "products" with a non-trivial mapping
-
-# 3. Build and run the app
-mvn package
-java -jar target/db-ui.jar
-
-# 4. Open the UI
-open http://localhost:8080      # or just visit it in your browser
+# 2. Build everything (parent + all three modules)
+mvn install
+#   Backend only, skipping the React build:  mvn install -Dfrontend.skip=true
 ```
 
-During development you can also run `mvn spring-boot:run` instead of building the jar.
+### Run the DB UI console
+
+```bash
+java -jar dbui/target/db-ui.jar          # http://localhost:8080
+```
+
+### Run the H2O Store
+
+```bash
+# Load the sample catalog into Cassandra + OpenSearch
+java -jar store-cli/target/store-cli.jar --file store-cli/samples/products.jsonl --recreate
+
+# Start the store
+java -jar store/target/h2o-store.jar     # http://localhost:8081
+```
+
+Then open http://localhost:8081 and sign in with the demo account **`user`** / **`password`**.
+
+During development you can also run either app with `mvn -pl <module> spring-boot:run`, and
+the store's front-end with `cd store/src/main/frontend && npm run dev` (it proxies `/api` to
+`:8081`).
 
 To stop and remove the databases:
 
@@ -83,58 +69,39 @@ To stop and remove the databases:
 docker compose down            # add -v to also delete the data volumes
 ```
 
-## Configuration
+## Repository layout
 
-Defaults live in `src/main/resources/application.yml` and can be overridden with
-environment variables or `--` flags. The connection settings are:
-
-| Property                          | Default                  | Description                          |
-|-----------------------------------|--------------------------|--------------------------------------|
-| `dbui.cassandra.host`             | `127.0.0.1`              | Cassandra contact point host         |
-| `dbui.cassandra.port`             | `9042`                   | Cassandra native port                |
-| `dbui.cassandra.local-datacenter` | `datacenter1`            | Local datacenter name                |
-| `dbui.opensearch.url`             | `http://127.0.0.1:9200`  | OpenSearch base URL                  |
-| `dbui.opensearch.username`        | *(empty)*                | Basic-auth user (if security is on)  |
-| `dbui.opensearch.password`        | *(empty)*                | Basic-auth password                  |
-| `dbui.history.file`               | `~/.db-ui/query-history.json` | Where the query history is stored |
-| `dbui.history.max-entries`        | `200`                    | Max history entries kept per source  |
-
-Example:
-
-```bash
-java -jar target/db-ui.jar --dbui.opensearch.url=http://localhost:9201
+```
+.
+├── pom.xml                     # Maven parent: shared versions, dependencyManagement, Spotless
+├── docker-compose.yml          # Cassandra 5 + OpenSearch 3.x for local use (shared by both apps)
+├── spotless/                   # shared Spotless config (license header + Eclipse formatter)
+├── .mvn/jvm.config             # JVM flags Spotless needs on JDK 25
+├── scripts/                    # helper scripts for the DB UI (seed data, start/stop)
+├── dbui/                       # DB UI console module (package com.dbui)
+├── store/                      # H2O Store module (backend com.dbui.store + React/Vite front-end)
+└── store-cli/                  # product ingest CLI (package com.dbui.store.cli)
 ```
 
-The OpenSearch image tag for `docker compose` can be changed with the `OPENSEARCH_TAG`
-environment variable (defaults to `3.6.0`):
+Library versions, the Spring Boot parent, and the shared build-plugin configuration
+(Spotless, the front-end toolchain) live in the **parent `pom.xml`**; each module keeps only
+what is specific to it.
+
+## Code style
+
+Formatting is enforced with the [Spotless](https://github.com/diffplug/spotless) Maven
+plugin (configured once in the parent and applied to every module), which also stamps the
+Apache 2.0 license header on source files.
 
 ```bash
-OPENSEARCH_TAG=3.5.0 docker compose up -d
+mvn spotless:check    # verify (also runs automatically during the build)
+mvn spotless:apply    # auto-format and add/refresh license headers
 ```
 
-## REST API
-
-The UI is a thin client over these endpoints (all read-only, returning JSON that
-includes the query/request used):
-
-| Method & path                                                        | Returns                            |
-|----------------------------------------------------------------------|------------------------------------|
-| `GET /api/cassandra/keyspaces`                                       | all keyspaces                      |
-| `GET /api/cassandra/keyspaces/{keyspace}/tables`                     | tables in a keyspace               |
-| `GET /api/cassandra/keyspaces/{keyspace}/tables/{table}/rows?limit=` | rows of a table (default 100)      |
-| `GET /api/cassandra/keyspaces/{keyspace}/tables/{table}/schema`      | columns, indexes (incl. SAI), UDTs |
-| `GET /api/opensearch/indices`                                        | all indices (`_cat/indices`)       |
-| `GET /api/opensearch/indices/{index}/documents?size=`                | documents in an index (default 50) |
-| `GET /api/opensearch/indices/{index}/documents/{id}`                 | a single document (`_doc/{id}`)    |
-| `GET /api/opensearch/indices/{index}/schema`                         | index mappings & settings          |
-| `POST /api/cassandra/query` `{ "cql": … }`                           | runs any CQL, returns all rows      |
-| `POST /api/opensearch/query` `{ method, path, body }`                | runs any OpenSearch REST call       |
-| `GET /api/history?type=cassandra\|opensearch`                        | saved query history for a source    |
-| `DELETE /api/history?type=cassandra\|opensearch`                     | clears the history for a source     |
-
-The browsing endpoints are read-only and cap row/document counts at 1000 per request.
-The `POST …/query` endpoints run whatever you send and, for Cassandra SELECTs, return
-the full result with no paging.
+Java is formatted with the **Eclipse JDT formatter** (`spotless/eclipse-formatter.prefs`),
+used instead of google-/palantir-java-format because, on JDK 25, those rely on `javac`
+internals that changed and fail to run. `.mvn/jvm.config` adds the `--add-exports` /
+`--add-opens` flags some Spotless steps need.
 
 ## Tests
 
@@ -142,52 +109,10 @@ the full result with no paging.
 mvn test
 ```
 
-The tests use **Testcontainers** to launch the databases, so Docker must be running — no
-externally running Cassandra/OpenSearch is needed (they are independent of `docker compose`).
-A shared base class (`AbstractIntegrationTest`) starts a real **Cassandra 5**
-(`org.testcontainers:cassandra`) and a real **OpenSearch 3.6**
-(`org.opensearch:opensearch-testcontainers`) once and reuses them across all tests.
+Both apps use **Testcontainers** to launch real Cassandra 5 and OpenSearch 3.x containers
+(independent of `docker compose`), so Docker must be running. The OpenSearch image is
+~1 GB, so the first run downloads it.
 
-- `CassandraServiceTest` / `OpenSearchServiceTest` — service-layer tests against the
-  containers.
-- `DbUiIntegrationTest` — a full-stack `@SpringBootTest` that boots the whole application,
-  wires it to the Testcontainers databases via `@DynamicPropertySource`, and drives it
-  through its HTTP REST API.
+## License
 
-The OpenSearch image is ~1 GB, so the first run downloads it.
-
-## Code style
-
-Formatting is enforced with the [Spotless](https://github.com/diffplug/spotless) Maven
-plugin, which also applies the Apache 2.0 license header to source files.
-
-```bash
-mvn spotless:check    # verify formatting (also runs automatically during `mvn verify`)
-mvn spotless:apply    # auto-format and add/refresh license headers
-```
-
-Java is formatted with the **Eclipse JDT formatter** (config in
-`spotless/eclipse-formatter.prefs`). It is used instead of google-/palantir-java-format
-because, on JDK 25, those rely on `javac` internals that changed and fail to run.
-`.mvn/jvm.config` adds the `--add-exports`/`--add-opens` flags some Spotless steps need.
-
-## Project layout
-
-```
-db-ui/
-├── docker-compose.yml            # Cassandra 5 + OpenSearch 3.6 for local use
-├── spotless/                     # Spotless config (license header, Eclipse formatter)
-├── .mvn/jvm.config               # JVM flags needed by Spotless on JDK 25
-├── scripts/seed-sample-data.sh   # optional simple sample data
-├── scripts/seed-demo.sh          # optional rich demo (UDTs, SAI, non-trivial OS mapping)
-├── src/main/java/com/dbui/
-│   ├── cassandra/                # Cassandra session, service, controller (browse + query)
-│   ├── opensearch/               # OpenSearch REST client, service, controller (browse + query)
-│   ├── history/                  # query-history service + controller (local file persistence)
-│   ├── model/                    # response records (CqlResult, Os*Result, HistoryEntry, …)
-│   ├── config/                   # connection & history properties
-│   └── web/                      # JSON error handling
-├── src/main/resources/static/    # the single-page UI (index.html, app.js, style.css)
-└── src/test/java/com/dbui/       # Testcontainers integration tests
-    └── AbstractIntegrationTest   # launches Cassandra + OpenSearch once, shared by all tests
-```
+Apache License 2.0 — see [`LICENSE`](LICENSE).
