@@ -20,6 +20,33 @@ See each module's own README for details:
 - [`store/README.md`](store/README.md) — the H2O Store (architecture, data model, REST API)
 - [`store-cli/README.md`](store-cli/README.md) — the ingest CLI
 
+## Screenshots
+
+### H2O Store
+
+The storefront — home page with the live tropical-fish showcase:
+
+![H2O Store home page](docs/img/store-home.png)
+
+Product search, powered by **OpenSearch** (relevance, fuzziness, category filter):
+
+![H2O Store search results](docs/img/store-search.png)
+
+The shopping cart and mock checkout / payment page:
+
+![H2O Store checkout](docs/img/store-checkout.png)
+
+### DB UI
+
+The same catalog, seen through the DB UI console. Browsing the store's Cassandra
+`products` table (with the exact `CQL` shown):
+
+![DB UI browsing Cassandra](docs/img/dbui-cassandra.png)
+
+…and the same products indexed in OpenSearch (`h2o_products`, with the `_search` request shown):
+
+![DB UI browsing OpenSearch](docs/img/dbui-opensearch.png)
+
 ## Prerequisites
 
 - JDK **25**
