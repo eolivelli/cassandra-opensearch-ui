@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.dbui</groupId>
+        <artifactId>h2o-parent</artifactId>
+        <version>1.0.0</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>store-cli</artifactId>
+    <name>H2O Store Ingest CLI</name>
+    <description>Command-line tool to ingest products (JSON Lines) into Cassandra and OpenSearch</description>
+
+    <dependencies>
+        <!-- Cassandra: DataStax Java driver -->
+        <dependency>
+            <groupId>org.apache.cassandra</groupId>
+            <artifactId>java-driver-core</artifactId>
+        </dependency>
+
+        <!-- JSON parsing (version managed by the Spring Boot parent). OpenSearch is called over
+             the raw REST API with the JDK HttpClient, exactly like the web modules. -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <!-- Simple logging binding so the driver's SLF4J calls have an implementation. -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>store-cli</finalName>
+        <plugins>
+            <!-- Build a self-contained, runnable jar. Spring Boot's repackager keeps every
+                 dependency as an intact nested jar, so the DataStax driver's reference.conf
+                 (Typesafe Config) is preserved and merged normally at runtime - no shading
+                 gymnastics required. -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>com.dbui.store.cli.ProductIngestCli</mainClass>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

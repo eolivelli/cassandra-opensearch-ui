@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Image unavailable">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b3d5c"/>
+      <stop offset="1" stop-color="#072a3f"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="300" fill="url(#bg)"/>
+  <g fill="none" stroke="#22d3ee" stroke-opacity="0.35" stroke-width="3">
+    <path d="M40 210 Q90 180 140 210 T240 210" />
+    <path d="M40 235 Q90 205 140 235 T240 235" />
+  </g>
+  <g transform="translate(200 130)">
+    <ellipse cx="0" cy="0" rx="46" ry="28" fill="#22d3ee" fill-opacity="0.85"/>
+    <path d="M40 0 L70 -22 L70 22 Z" fill="#0891b2"/>
+    <circle cx="-18" cy="-6" r="5" fill="#04141f"/>
+  </g>
+  <text x="200" y="250" text-anchor="middle" fill="#7fa0b3" font-family="Segoe UI, sans-serif" font-size="16">H2O Store</text>
+</svg>
