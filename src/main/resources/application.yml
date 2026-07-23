@@ -29,6 +29,11 @@ dbui:
     url: http://127.0.0.1:9200
     username: ""
     password: ""
+  history:
+    # Local file where executed query commands (not their results) are stored so they
+    # can be re-run from the query pages.
+    file: ${user.home}/.db-ui/query-history.json
+    max-entries: 200
 
 logging:
   level:

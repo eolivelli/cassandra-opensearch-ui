@@ -33,6 +33,8 @@
     <nav class="tabs">
         <button class="tab active" data-source="cassandra">Cassandra</button>
         <button class="tab" data-source="opensearch">OpenSearch</button>
+        <button class="tab" data-source="cassandra-query">CQL Query</button>
+        <button class="tab" data-source="opensearch-query">OS Query</button>
     </nav>
 </header>
 
@@ -40,7 +42,10 @@
     <aside class="sidebar">
         <div class="sidebar-header">
             <span id="sidebar-title">Keyspaces</span>
-            <button id="refresh-btn" title="Refresh">⟳</button>
+            <span class="sidebar-actions">
+                <button id="clear-history-btn" class="hidden" title="Clear history">🗑</button>
+                <button id="refresh-btn" title="Refresh">⟳</button>
+            </span>
         </div>
         <div id="tree" class="tree"></div>
     </aside>
@@ -49,6 +54,36 @@
         <div id="breadcrumb" class="breadcrumb">Select an item on the left to begin.</div>
 
         <div id="view-switch" class="view-switch hidden"></div>
+
+        <div id="query-editor" class="query-editor hidden">
+            <div id="cql-fields" class="hidden">
+                <label class="query-label" for="cql-input">CQL statement</label>
+                <textarea id="cql-input" class="query-textarea" spellcheck="false"
+                          placeholder="SELECT * FROM keyspace.table;"></textarea>
+            </div>
+            <div id="os-fields" class="hidden">
+                <label class="query-label">Request</label>
+                <div class="os-line">
+                    <select id="os-method">
+                        <option>GET</option>
+                        <option>POST</option>
+                        <option>PUT</option>
+                        <option>DELETE</option>
+                        <option>HEAD</option>
+                    </select>
+                    <input id="os-path" class="os-path" spellcheck="false"
+                           placeholder="/index/_search"/>
+                </div>
+                <label class="query-label" for="os-body">Request body (JSON, optional)</label>
+                <textarea id="os-body" class="query-textarea" spellcheck="false"
+                          placeholder='{ "query": { "match_all": {} } }'></textarea>
+            </div>
+            <div class="query-actions">
+                <button id="run-btn" class="run-btn">Run ▸</button>
+                <span class="hint" id="query-hint"></span>
+                <span id="query-status" class="result-meta"></span>
+            </div>
+        </div>
 
         <div id="request-panel" class="request-panel hidden">
             <div class="request-header">

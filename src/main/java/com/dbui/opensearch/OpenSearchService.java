@@ -19,6 +19,7 @@ import com.dbui.model.OsDocument;
 import com.dbui.model.OsDocumentsResult;
 import com.dbui.model.OsIndexSchema;
 import com.dbui.model.OsIndicesResult;
+import com.dbui.model.OsQueryResult;
 import com.dbui.model.OsRequest;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,6 +29,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.stereotype.Service;
@@ -96,6 +98,26 @@ public class OpenSearchService {
             }
         }
         return new OsDocumentsResult(request, total, new ArrayList<>(columns), documents);
+    }
+
+    /**
+     * Runs an arbitrary REST call entered on the query page. The {@code path} is taken relative to
+     * the configured base URL (a leading slash is added when missing); an absolute {@code http(s)}
+     * URL is used as-is. Returns the HTTP status and response body even for non-2xx responses.
+     */
+    public OsQueryResult executeRequest(String method, String path, String body) {
+        String verb = (method == null || method.isBlank())
+                ? "GET"
+                : method.strip().toUpperCase(Locale.ROOT);
+        String rawPath = path == null ? "" : path.strip();
+        String effectivePath = rawPath.startsWith("http://") || rawPath.startsWith("https://")
+                || rawPath.startsWith("/") ? rawPath : "/" + rawPath;
+        String effectiveBody = body == null || body.isBlank() ? null : body;
+
+        OsRequest request = new OsRequest(verb, effectivePath, effectiveBody);
+        OpenSearchClient.ClientResponse response = client.request(verb, effectivePath,
+                effectiveBody);
+        return new OsQueryResult(request, response.status(), response.body());
     }
 
     /** Returns the mappings, settings and aliases of an index. */

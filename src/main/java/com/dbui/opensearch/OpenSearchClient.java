@@ -26,6 +26,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;
+import java.util.Locale;
 import org.springframework.stereotype.Component;
 
 /**
@@ -58,10 +59,32 @@ public class OpenSearchClient {
         return send(request);
     }
 
+    /**
+     * Performs an arbitrary REST call for the query page. Unlike {@link #get}/{@link #post}, a
+     * non-2xx response is returned rather than thrown, so the caller can surface OpenSearch's own
+     * status and error body to the user. A blank body sends no request body.
+     */
+    public ClientResponse request(String method, String path, String jsonBody) {
+        String verb = (method == null || method.isBlank())
+                ? "GET"
+                : method.strip().toUpperCase(Locale.ROOT);
+        boolean hasBody = jsonBody != null && !jsonBody.isBlank();
+        HttpRequest.BodyPublisher publisher = hasBody
+                ? HttpRequest.BodyPublishers.ofString(jsonBody, StandardCharsets.UTF_8)
+                : HttpRequest.BodyPublishers.noBody();
+        HttpRequest.Builder builder = baseRequest(path).method(verb, publisher);
+        if (hasBody) {
+            builder.header("Content-Type", "application/json");
+        }
+        return sendRaw(builder.build());
+    }
+
     private HttpRequest.Builder baseRequest(String path) {
-        HttpRequest.Builder builder = HttpRequest.newBuilder()
-                .uri(URI.create(properties.getUrl() + path)).timeout(Duration.ofSeconds(30))
-                .header("Accept", "application/json");
+        String url = path.startsWith("http://") || path.startsWith("https://")
+                ? path
+                : properties.getUrl() + path;
+        HttpRequest.Builder builder = HttpRequest.newBuilder().uri(URI.create(url))
+                .timeout(Duration.ofSeconds(30)).header("Accept", "application/json");
         if (properties.getUsername() != null && !properties.getUsername().isBlank()) {
             String token = properties.getUsername() + ":" + properties.getPassword();
             String encoded = Base64.getEncoder()
@@ -89,6 +112,39 @@ public class OpenSearchClient {
             Thread.currentThread().interrupt();
             throw new OpenSearchException("Interrupted while calling OpenSearch", e);
         }
+    }
+
+    /**
+     * Sends a request and returns the status and (leniently parsed) body without throwing on
+     * 4xx/5xx.
+     */
+    private ClientResponse sendRaw(HttpRequest request) {
+        try {
+            HttpResponse<String> response = httpClient.send(request,
+                    HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            String body = response.body();
+            JsonNode node;
+            if (body == null || body.isBlank()) {
+                node = mapper.createObjectNode();
+            } else {
+                try {
+                    node = mapper.readTree(body);
+                } catch (IOException notJson) {
+                    // e.g. a _cat text response — expose it as-is rather than failing.
+                    node = mapper.getNodeFactory().textNode(body);
+                }
+            }
+            return new ClientResponse(response.statusCode(), node);
+        } catch (IOException e) {
+            throw new OpenSearchException("Failed to call OpenSearch: " + e.getMessage(), e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new OpenSearchException("Interrupted while calling OpenSearch", e);
+        }
+    }
+
+    /** An HTTP status code paired with the parsed response body. */
+    public record ClientResponse(int status, JsonNode body) {
     }
 
     /** Raised when an OpenSearch request fails. */

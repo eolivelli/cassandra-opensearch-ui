@@ -42,11 +42,16 @@ import org.springframework.test.context.DynamicPropertySource;
 class DbUiIntegrationTest extends AbstractIntegrationTest {
 
     @DynamicPropertySource
-    static void wireDatabases(DynamicPropertyRegistry registry) {
+    static void wireDatabases(DynamicPropertyRegistry registry) throws Exception {
         registry.add("dbui.cassandra.host", () -> CASSANDRA.getContactPoint().getHostString());
         registry.add("dbui.cassandra.port", () -> CASSANDRA.getContactPoint().getPort());
         registry.add("dbui.cassandra.local-datacenter", CASSANDRA::getLocalDatacenter);
         registry.add("dbui.opensearch.url", OPENSEARCH::getHttpHostAddress);
+        // Keep the history off the developer's home directory during tests.
+        java.io.File historyFile = java.io.File.createTempFile("db-ui-history", ".json");
+        historyFile.deleteOnExit();
+        historyFile.delete();
+        registry.add("dbui.history.file", historyFile::getAbsolutePath);
     }
 
     @Autowired
@@ -132,6 +137,69 @@ class DbUiIntegrationTest extends AbstractIntegrationTest {
                 JsonNode.class);
         assertThat(body.path("request").path("path").asText()).isEqualTo("/it_products");
         assertThat(body.path("mappings").path("properties").has("name")).isTrue();
+    }
+
+    @Test
+    void cassandraQueryEndpointRunsSelectAndReturnsAllRows() {
+        JsonNode body = rest.postForObject("/api/cassandra/query",
+                java.util.Map.of("cql", "SELECT * FROM it_store.products"), JsonNode.class);
+        assertThat(body.path("rowCount").asInt()).isGreaterThanOrEqualTo(2);
+        assertThat(body.path("applied").asBoolean()).isTrue();
+        assertThat(jsonValues(body.path("rows"), "name")).contains("Keyboard", "Mouse");
+    }
+
+    @Test
+    void cassandraQueryEndpointRunsDdlAndDmlWithNoRows() {
+        // Use a dedicated table so mutations do not affect the shared it_store.products fixture.
+        JsonNode ddl = rest.postForObject("/api/cassandra/query", java.util.Map.of("cql",
+                "CREATE TABLE IF NOT EXISTS it_store.query_dml_test (id int PRIMARY KEY, v text)"),
+                JsonNode.class);
+        assertThat(ddl.path("rowCount").asInt()).isEqualTo(0);
+        assertThat(ddl.path("columns")).isEmpty();
+
+        JsonNode dml = rest.postForObject("/api/cassandra/query",
+                java.util.Map.of("cql",
+                        "INSERT INTO it_store.query_dml_test (id, v) VALUES (1, 'x')"),
+                JsonNode.class);
+        assertThat(dml.path("rowCount").asInt()).isEqualTo(0);
+        assertThat(dml.path("applied").asBoolean()).isTrue();
+    }
+
+    @Test
+    void openSearchQueryEndpointRunsSearch() {
+        JsonNode body = rest.postForObject(
+                "/api/opensearch/query", java.util.Map.of("method", "GET", "path",
+                        "/it_products/_search", "body", "{\"query\":{\"match_all\":{}}}"),
+                JsonNode.class);
+        assertThat(body.path("status").asInt()).isEqualTo(200);
+        assertThat(body.path("request").path("method").asText()).isEqualTo("GET");
+        assertThat(body.path("response").path("hits").path("total").path("value").asLong())
+                .isEqualTo(2);
+    }
+
+    @Test
+    void openSearchQueryEndpointReturnsStatusForMissingIndex() {
+        JsonNode body = rest.postForObject("/api/opensearch/query",
+                java.util.Map.of("method", "GET", "path", "/does_not_exist/_search"),
+                JsonNode.class);
+        assertThat(body.path("status").asInt()).isEqualTo(404);
+    }
+
+    @Test
+    void historyRecordsExecutedCommandsAndCanBeCleared() {
+        rest.postForObject("/api/cassandra/query",
+                java.util.Map.of("cql", "SELECT keyspace_name FROM system_schema.keyspaces"),
+                JsonNode.class);
+
+        JsonNode history = rest.getForObject("/api/history?type=cassandra", JsonNode.class);
+        assertThat(jsonValues(history, "cql"))
+                .contains("SELECT keyspace_name FROM system_schema.keyspaces");
+        assertThat(history.get(0).path("type").asText()).isEqualTo("cassandra");
+
+        rest.delete("/api/history?type=cassandra");
+
+        JsonNode cleared = rest.getForObject("/api/history?type=cassandra", JsonNode.class);
+        assertThat(cleared).isEmpty();
     }
 
     /** Collects the values of {@code field} across an array of JSON objects. */

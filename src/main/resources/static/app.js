@@ -23,20 +23,31 @@ const state = {
     primaryKey: [],    // primary-key columns of the current table
 };
 
+// Maps a query-page tab to the history "type" it works with.
+const QUERY_SOURCES = { "cassandra-query": "cassandra", "opensearch-query": "opensearch" };
+
 const el = (id) => document.getElementById(id);
+const isQueryMode = () => state.source in QUERY_SOURCES;
 
 document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll(".tab").forEach((tab) => {
         tab.addEventListener("click", () => switchSource(tab.dataset.source));
     });
-    el("refresh-btn").addEventListener("click", loadTree);
+    el("refresh-btn").addEventListener("click", () => (isQueryMode() ? loadHistory() : loadTree()));
+    el("clear-history-btn").addEventListener("click", clearHistory);
     el("limit").addEventListener("change", () => render());
     el("copy-btn").addEventListener("click", () => copyText(el("request-text").textContent, el("copy-btn")));
+    el("run-btn").addEventListener("click", runQuery);
     el("drawer-close").addEventListener("click", closeDrawer);
     el("drawer-overlay").addEventListener("click", (e) => {
         if (e.target === el("drawer-overlay")) closeDrawer();
     });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDrawer(); });
+    // Ctrl/Cmd+Enter runs the query from any of the editor fields.
+    ["cql-input", "os-path", "os-body"].forEach((id) =>
+        el(id).addEventListener("keydown", (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); runQuery(); }
+        }));
     loadTree();
 });
 
@@ -47,18 +58,184 @@ function switchSource(source) {
     state.expanded.clear();
     document.querySelectorAll(".tab").forEach((t) =>
         t.classList.toggle("active", t.dataset.source === source));
-    el("sidebar-title").textContent = source === "cassandra" ? "Keyspaces" : "Indices";
-    el("breadcrumb").textContent = "Select an item on the left to begin.";
     hide("request-panel");
     hide("controls");
     hide("view-switch");
     hide("message");
     el("result").innerHTML = "";
-    loadTree();
+    el("query-status").textContent = "";
+
+    if (isQueryMode()) {
+        enterQueryMode();
+    } else {
+        hide("query-editor");
+        hide("clear-history-btn");
+        el("sidebar-title").textContent = source === "cassandra" ? "Keyspaces" : "Indices";
+        el("breadcrumb").textContent = "Select an item on the left to begin.";
+        loadTree();
+    }
+}
+
+// ---------- Query pages ----------
+
+function enterQueryMode() {
+    const cql = state.source === "cassandra-query";
+    el("sidebar-title").textContent = "History";
+    show("clear-history-btn");
+    el("breadcrumb").innerHTML = cql
+        ? `Cassandra › <b>run a query</b>`
+        : `OpenSearch › <b>run a request</b>`;
+    toggle("cql-fields", cql);
+    toggle("os-fields", !cql);
+    el("query-hint").textContent = cql
+        ? "Ctrl+Enter to run · SELECT, DDL or DML · all rows returned"
+        : "Ctrl+Enter to run · path is relative to the OpenSearch base URL";
+    show("query-editor");
+    loadHistory();
+}
+
+async function loadHistory() {
+    const type = QUERY_SOURCES[state.source];
+    const tree = el("tree");
+    tree.innerHTML = `<div class="spinner">Loading…</div>`;
+    try {
+        const items = await api(`/api/history?type=${type}`);
+        renderHistory(items);
+    } catch (e) {
+        tree.innerHTML = `<div class="spinner" style="color:var(--danger)">${escapeHtml(e.message)}</div>`;
+    }
+}
+
+function renderHistory(items) {
+    const tree = el("tree");
+    tree.innerHTML = "";
+    if (!items || items.length === 0) {
+        tree.innerHTML = `<div class="spinner">No history yet. Run a query to save it here.</div>`;
+        return;
+    }
+    items.forEach((entry) => {
+        const node = document.createElement("div");
+        node.className = "tree-node history";
+        const cmd = document.createElement("div");
+        cmd.className = "hist-cmd";
+        if (entry.type === "cassandra") {
+            cmd.textContent = collapse(entry.cql);
+            node.title = entry.cql;
+        } else {
+            cmd.innerHTML = `<span class="hist-method">${escapeHtml(entry.method)}</span>`
+                + escapeHtml(entry.path);
+            node.title = `${entry.method} ${entry.path}` + (entry.body ? `\n${entry.body}` : "");
+        }
+        const time = document.createElement("div");
+        time.className = "hist-time";
+        time.textContent = formatTime(entry.timestamp);
+        node.appendChild(cmd);
+        node.appendChild(time);
+        node.addEventListener("click", () => loadIntoEditor(entry));
+        tree.appendChild(node);
+    });
+}
+
+function loadIntoEditor(entry) {
+    if (entry.type === "cassandra") {
+        el("cql-input").value = entry.cql || "";
+        el("cql-input").focus();
+    } else {
+        el("os-method").value = entry.method || "GET";
+        el("os-path").value = entry.path || "";
+        el("os-body").value = entry.body || "";
+        el("os-path").focus();
+    }
+}
+
+async function clearHistory() {
+    const type = QUERY_SOURCES[state.source];
+    if (!confirm(`Clear the ${type} query history?`)) return;
+    try {
+        await apiSend("DELETE", `/api/history?type=${type}`);
+        loadHistory();
+    } catch (e) {
+        showMessage(e.message, "error");
+    }
+}
+
+async function runQuery() {
+    hide("message");
+    hide("request-panel");
+    el("query-status").textContent = "";
+    el("run-btn").disabled = true;
+    try {
+        if (state.source === "cassandra-query") {
+            await runCassandraQuery();
+        } else {
+            await runOpenSearchQuery();
+        }
+        loadHistory(); // reflect the just-run command at the top
+    } catch (e) {
+        el("result").innerHTML = "";
+        showMessage(e.message, "error");
+        loadHistory(); // the command is recorded even when it fails
+    } finally {
+        el("run-btn").disabled = false;
+    }
+}
+
+async function runCassandraQuery() {
+    const cql = el("cql-input").value.trim();
+    if (!cql) { showMessage("Enter a CQL statement to run.", "info"); return; }
+    el("result").innerHTML = `<div class="spinner">Running…</div>`;
+    const r = await apiSend("POST", "/api/cassandra/query", { cql });
+    showRequest("CQL", r.cql);
+    if (r.columns && r.columns.length) {
+        el("query-status").innerHTML = `<span class="status-ok">${r.rowCount} row(s)</span>`;
+        renderTable(r.columns, r.rows, null);
+    } else {
+        el("query-status").innerHTML = `<span class="status-ok">Statement executed`
+            + (r.applied ? "" : " (not applied)") + `</span>`;
+        el("result").innerHTML = `<div class="message info">`
+            + `Statement executed successfully. No rows returned.</div>`;
+    }
+}
+
+async function runOpenSearchQuery() {
+    const method = el("os-method").value;
+    const path = el("os-path").value.trim();
+    const body = el("os-body").value.trim();
+    if (!path) { showMessage("Enter a request path to run.", "info"); return; }
+    el("result").innerHTML = `<div class="spinner">Running…</div>`;
+    const r = await apiSend("POST", "/api/opensearch/query", { method, path, body });
+    showRequest("REST API", formatOsRequest(r.request));
+    const ok = r.status >= 200 && r.status < 300;
+    el("query-status").innerHTML = `<span class="${ok ? "status-ok" : "status-err"}">HTTP ${r.status}</span>`;
+    el("result").innerHTML = `<pre class="code-block json">`
+        + `${escapeHtml(JSON.stringify(r.response, null, 2))}</pre>`;
+}
+
+function collapse(s) {
+    return String(s || "").replace(/\s+/g, " ").trim();
+}
+
+function formatTime(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return isNaN(d) ? iso : d.toLocaleString();
 }
 
 async function api(path) {
     const res = await fetch(path);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
+    return data;
+}
+
+// Sends a request with an optional JSON body (POST/DELETE) and parses the JSON response, if any.
+async function apiSend(method, path, body) {
+    const opts = { method };
+    if (body !== undefined) {
+        opts.headers = { "Content-Type": "application/json" };
+        opts.body = JSON.stringify(body);
+    }
+    const res = await fetch(path, opts);
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
     return data;
@@ -458,6 +635,7 @@ function showMessage(msg, kind) {
 
 function show(id) { el(id).classList.remove("hidden"); }
 function hide(id) { el(id).classList.add("hidden"); }
+function toggle(id, on) { el(id).classList.toggle("hidden", !on); }
 
 function escapeHtml(s) {
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;")

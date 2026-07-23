@@ -15,25 +15,32 @@
  */
 package com.dbui.opensearch;
 
+import com.dbui.history.QueryHistoryService;
 import com.dbui.model.OsDocument;
 import com.dbui.model.OsDocumentsResult;
 import com.dbui.model.OsIndexSchema;
 import com.dbui.model.OsIndicesResult;
+import com.dbui.model.OsQueryRequest;
+import com.dbui.model.OsQueryResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** REST endpoints for browsing OpenSearch. */
+/** REST endpoints for browsing OpenSearch and running ad-hoc REST calls. */
 @RestController
 @RequestMapping("/api/opensearch")
 public class OpenSearchController {
 
     private final OpenSearchService service;
+    private final QueryHistoryService history;
 
-    public OpenSearchController(OpenSearchService service) {
+    public OpenSearchController(OpenSearchService service, QueryHistoryService history) {
         this.service = service;
+        this.history = history;
     }
 
     @GetMapping("/indices")
@@ -55,5 +62,22 @@ public class OpenSearchController {
     @GetMapping("/indices/{index}/schema")
     public OsIndexSchema schema(@PathVariable String index) {
         return service.indexSchema(index);
+    }
+
+    /**
+     * Runs an arbitrary OpenSearch REST call. The command is recorded in the history before it
+     * runs, so even a call that fails can be recalled and corrected.
+     */
+    @PostMapping("/query")
+    public OsQueryResult query(@RequestBody OsQueryRequest request) {
+        String path = request.path() == null ? "" : request.path().strip();
+        if (path.isEmpty()) {
+            throw new IllegalArgumentException("No request path provided");
+        }
+        String method = request.method() == null || request.method().isBlank()
+                ? "GET"
+                : request.method().strip().toUpperCase(java.util.Locale.ROOT);
+        history.recordOpenSearch(method, path, request.body());
+        return service.executeRequest(method, path, request.body());
     }
 }

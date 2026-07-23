@@ -88,11 +88,74 @@ body {
     color: var(--muted);
     border-bottom: 1px solid var(--border);
 }
-#refresh-btn {
+.sidebar-actions { display: flex; align-items: center; gap: 6px; }
+#refresh-btn, #clear-history-btn {
     background: none; border: none; color: var(--muted);
-    font-size: 18px; cursor: pointer;
+    font-size: 18px; cursor: pointer; line-height: 1;
 }
 #refresh-btn:hover { color: var(--accent); }
+#clear-history-btn { font-size: 15px; }
+#clear-history-btn:hover { color: var(--danger); }
+
+/* ---- Query pages ---- */
+.query-editor { margin-bottom: 18px; }
+.query-label {
+    display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .5px;
+    color: var(--muted); margin: 0 0 6px;
+}
+#os-fields .query-label:not(:first-child) { margin-top: 14px; }
+.query-textarea {
+    width: 100%;
+    min-height: 130px;
+    resize: vertical;
+    background: var(--code-bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px; line-height: 1.5;
+}
+.query-textarea:focus, .os-path:focus, #os-method:focus {
+    outline: none; border-color: var(--accent);
+}
+.os-line { display: flex; gap: 8px; margin-bottom: 4px; }
+#os-method {
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 13px;
+}
+.os-path {
+    flex: 1;
+    background: var(--code-bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13px;
+}
+.query-actions { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+.run-btn {
+    background: #243049; color: #fff;
+    border: 1px solid var(--accent); border-radius: 8px;
+    padding: 8px 20px; cursor: pointer; font-size: 14px; font-weight: 600;
+}
+.run-btn:hover { background: #2c3b5c; }
+.run-btn:disabled { opacity: .5; cursor: default; }
+.query-actions .hint { font-size: 12px; color: var(--muted); }
+.query-actions .result-meta { margin-left: auto; }
+.status-ok { color: var(--accent-2); }
+.status-err { color: var(--danger); }
+
+/* history entries reuse .tree-node; give them room for two lines */
+.tree-node.history {
+    flex-direction: column; align-items: stretch; gap: 2px;
+    white-space: normal; padding: 8px 16px;
+}
+.tree-node.history .hist-cmd {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; color: var(--text);
+}
+.tree-node.history .hist-time { font-size: 11px; color: var(--muted); }
+.tree-node.history .hist-method {
+    color: var(--accent); font-weight: 600; margin-right: 6px;
+}
 
 .tree { overflow-y: auto; flex: 1; padding: 8px 0; }
 .tree-node {

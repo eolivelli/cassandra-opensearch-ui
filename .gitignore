@@ -51,3 +51,6 @@ desktop.ini
 # ---- Local environment ----
 *.local
 .env
+
+# ---- DB UI run files (pid/log) ----
+.run/

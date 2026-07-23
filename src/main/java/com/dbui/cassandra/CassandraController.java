@@ -15,24 +15,31 @@
  */
 package com.dbui.cassandra;
 
+import com.dbui.history.QueryHistoryService;
 import com.dbui.model.CassandraSchema;
+import com.dbui.model.CqlQueryRequest;
+import com.dbui.model.CqlQueryResult;
 import com.dbui.model.CqlResult;
 import com.dbui.model.TableRows;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** REST endpoints for browsing Cassandra. */
+/** REST endpoints for browsing Cassandra and running ad-hoc queries. */
 @RestController
 @RequestMapping("/api/cassandra")
 public class CassandraController {
 
     private final CassandraService service;
+    private final QueryHistoryService history;
 
-    public CassandraController(CassandraService service) {
+    public CassandraController(CassandraService service, QueryHistoryService history) {
         this.service = service;
+        this.history = history;
     }
 
     @GetMapping("/keyspaces")
@@ -54,5 +61,19 @@ public class CassandraController {
     @GetMapping("/keyspaces/{keyspace}/tables/{table}/schema")
     public CassandraSchema schema(@PathVariable String keyspace, @PathVariable String table) {
         return service.tableSchema(keyspace, table);
+    }
+
+    /**
+     * Runs an arbitrary CQL statement (SELECT, DDL or DML). The command is recorded in the history
+     * before it runs, so even a statement that fails can be recalled and corrected.
+     */
+    @PostMapping("/query")
+    public CqlQueryResult query(@RequestBody CqlQueryRequest request) {
+        String cql = request.cql() == null ? "" : request.cql().strip();
+        if (cql.isEmpty()) {
+            throw new IllegalArgumentException("No CQL statement provided");
+        }
+        history.recordCassandra(cql);
+        return service.executeQuery(cql);
     }
 }

@@ -36,6 +36,7 @@ import com.datastax.oss.driver.api.core.type.SetType;
 import com.datastax.oss.driver.api.core.type.TupleType;
 import com.datastax.oss.driver.api.core.type.UserDefinedType;
 import com.dbui.model.CassandraSchema;
+import com.dbui.model.CqlQueryResult;
 import com.dbui.model.CqlResult;
 import com.dbui.model.TableRows;
 import java.nio.ByteBuffer;
@@ -87,6 +88,16 @@ public class CassandraService {
         RawResult raw = run(SimpleStatement.newInstance(cql));
         List<String> primaryKey = primaryKeyColumns(keyspace, table);
         return new TableRows(cql, raw.columns(), primaryKey, raw.rows(), raw.rows().size());
+    }
+
+    /**
+     * Runs an arbitrary CQL statement entered on the query page (SELECT, DDL or DML) and returns
+     * all of its rows at once (the driver pages internally, but every page is fetched). For
+     * statements that return no rows the columns and rows are empty.
+     */
+    public CqlQueryResult executeQuery(String cql) {
+        RawResult raw = run(SimpleStatement.newInstance(cql));
+        return new CqlQueryResult(cql, raw.columns(), raw.rows(), raw.rows().size(), raw.applied());
     }
 
     /** Builds a schema description (columns, indexes, UDTs) for a table. */
@@ -199,10 +210,11 @@ public class CassandraService {
             }
             rows.add(values);
         }
-        return new RawResult(columns, rows);
+        return new RawResult(columns, rows, rs.wasApplied());
     }
 
-    private record RawResult(List<String> columns, List<Map<String, Object>> rows) {
+    private record RawResult(List<String> columns, List<Map<String, Object>> rows,
+            boolean applied) {
     }
 
     /** Converts a driver value to something Jackson can render predictably. */

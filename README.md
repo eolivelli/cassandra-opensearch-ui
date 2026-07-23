@@ -1,9 +1,14 @@
 # DB UI
 
-A small, **read-only** web console to inspect the contents of two databases running locally:
+A small web console to inspect the contents of two databases running locally, plus
+ad-hoc **query pages** for running your own statements against them:
 
 - **Apache Cassandra 5**
 - **OpenSearch 3.6.x** (works with 3.5 too)
+
+The browsing screens are read-only; the query pages can run **any** statement you type
+(including DDL/DML on Cassandra and write requests on OpenSearch), so use them with the
+same care you would a shell.
 
 There is **no authentication** — it is meant for local development against databases
 running in Docker on your machine.
@@ -25,6 +30,14 @@ produced the data, so you can copy it and reproduce it yourself.
   (`GET /{index}/_doc/{id}`).
 - Each view displays the underlying CQL / REST request (with a copy button).
 - Adjustable row/document limit.
+- **CQL Query page:** run any CQL statement (SELECT, DDL or DML) and see the whole
+  result at once (no paging). SELECTs render as a table; DDL/DML report success.
+- **OS Query page:** run any OpenSearch REST call — pick the HTTP method, enter the path
+  (relative to the base URL) and an optional JSON body. The raw status and response JSON
+  are shown, including for error responses (e.g. a 404).
+- **Query history:** every command you run on a query page is saved to a local file
+  (the command only — never the results) and listed in the sidebar, newest first. Click
+  one to load it back into the editor and re-run it; use the 🗑 button to clear it.
 
 ## Tech stack
 
@@ -83,6 +96,8 @@ environment variables or `--` flags. The connection settings are:
 | `dbui.opensearch.url`             | `http://127.0.0.1:9200`  | OpenSearch base URL                  |
 | `dbui.opensearch.username`        | *(empty)*                | Basic-auth user (if security is on)  |
 | `dbui.opensearch.password`        | *(empty)*                | Basic-auth password                  |
+| `dbui.history.file`               | `~/.db-ui/query-history.json` | Where the query history is stored |
+| `dbui.history.max-entries`        | `200`                    | Max history entries kept per source  |
 
 Example:
 
@@ -112,8 +127,14 @@ includes the query/request used):
 | `GET /api/opensearch/indices/{index}/documents?size=`                | documents in an index (default 50) |
 | `GET /api/opensearch/indices/{index}/documents/{id}`                 | a single document (`_doc/{id}`)    |
 | `GET /api/opensearch/indices/{index}/schema`                         | index mappings & settings          |
+| `POST /api/cassandra/query` `{ "cql": … }`                           | runs any CQL, returns all rows      |
+| `POST /api/opensearch/query` `{ method, path, body }`                | runs any OpenSearch REST call       |
+| `GET /api/history?type=cassandra\|opensearch`                        | saved query history for a source    |
+| `DELETE /api/history?type=cassandra\|opensearch`                     | clears the history for a source     |
 
-Row/document counts are capped at 1000 per request.
+The browsing endpoints are read-only and cap row/document counts at 1000 per request.
+The `POST …/query` endpoints run whatever you send and, for Cassandra SELECTs, return
+the full result with no paging.
 
 ## Tests
 
@@ -160,10 +181,11 @@ db-ui/
 ├── scripts/seed-sample-data.sh   # optional simple sample data
 ├── scripts/seed-demo.sh          # optional rich demo (UDTs, SAI, non-trivial OS mapping)
 ├── src/main/java/com/dbui/
-│   ├── cassandra/                # Cassandra session, service, controller
-│   ├── opensearch/               # OpenSearch REST client, service, controller
-│   ├── model/                    # response records (CqlResult, Os*Result)
-│   ├── config/                   # connection properties
+│   ├── cassandra/                # Cassandra session, service, controller (browse + query)
+│   ├── opensearch/               # OpenSearch REST client, service, controller (browse + query)
+│   ├── history/                  # query-history service + controller (local file persistence)
+│   ├── model/                    # response records (CqlResult, Os*Result, HistoryEntry, …)
+│   ├── config/                   # connection & history properties
 │   └── web/                      # JSON error handling
 ├── src/main/resources/static/    # the single-page UI (index.html, app.js, style.css)
 └── src/test/java/com/dbui/       # Testcontainers integration tests
