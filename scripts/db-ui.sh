@@ -25,11 +25,11 @@
 #
 # Environment overrides:
 #   PORT   HTTP port the app listens on (default 8080)
-#   JAR    path to the runnable jar (default target/db-ui.jar)
+#   JAR    path to the runnable jar (default dbui/target/db-ui.jar)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-JAR="${JAR:-$ROOT/target/db-ui.jar}"
+JAR="${JAR:-$ROOT/dbui/target/db-ui.jar}"
 PORT="${PORT:-8080}"
 RUN_DIR="$ROOT/.run"
 PID_FILE="$RUN_DIR/db-ui.pid"
@@ -55,7 +55,7 @@ start() {
 
   if [ ! -f "$JAR" ]; then
     echo "Jar not found: $JAR" >&2
-    echo "Build it first with:  mvn package  (or 'mvn package -DskipTests')" >&2
+    echo "Build it first with:  mvn package -pl dbui -am  (add -DskipTests to go faster)" >&2
     exit 1
   fi
 
