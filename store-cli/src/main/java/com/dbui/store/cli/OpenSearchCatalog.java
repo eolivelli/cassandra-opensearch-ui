@@ -55,12 +55,15 @@ final class OpenSearchCatalog {
     private final String index;
     private final ObjectMapper mapper;
     private final HttpClient http;
+    private final boolean directWriteToOpenSearch;
 
-    OpenSearchCatalog(String baseUrl, String index, ObjectMapper mapper) {
+    OpenSearchCatalog(String baseUrl, String index, ObjectMapper mapper,
+            boolean directWriteToOpenSearch) {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         this.index = index;
         this.mapper = mapper;
         this.http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+        this.directWriteToOpenSearch = directWriteToOpenSearch;
     }
 
     void ensureIndex() {
@@ -76,6 +79,9 @@ final class OpenSearchCatalog {
     }
 
     void index(ParsedProduct p) {
+        if (!directWriteToOpenSearch) {
+            return;
+        }
         ObjectNode doc = mapper.createObjectNode();
         doc.put("name", p.name());
         doc.put("description", p.description());

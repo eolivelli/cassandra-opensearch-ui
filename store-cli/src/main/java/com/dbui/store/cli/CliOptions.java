@@ -23,7 +23,8 @@ import java.nio.file.Path;
  * started by the repository's docker-compose.yml.
  */
 record CliOptions(boolean help, Path file, String cassandraHost, int cassandraPort,
-        String datacenter, String keyspace, String openSearchUrl, String index, boolean recreate) {
+        String datacenter, String keyspace, String openSearchUrl, String index, boolean recreate,
+        boolean directWriteToOpenSearch) {
 
     static CliOptions parse(String[] args) {
         boolean help = false;
@@ -35,12 +36,14 @@ record CliOptions(boolean help, Path file, String cassandraHost, int cassandraPo
         String openSearchUrl = "http://127.0.0.1:9200";
         String index = "h2o_products";
         boolean recreate = false;
+        boolean directWriteToOpenSearch = false;
 
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
             switch (arg) {
                 case "-h", "--help" -> help = true;
                 case "--recreate" -> recreate = true;
+                case "--directWriteToOpenSearch" -> directWriteToOpenSearch = true;
                 case "-f", "--file" -> file = Path.of(requireValue(args, ++i, arg));
                 case "--cassandra-host" -> cassandraHost = requireValue(args, ++i, arg);
                 case "--cassandra-port" ->
@@ -63,7 +66,7 @@ record CliOptions(boolean help, Path file, String cassandraHost, int cassandraPo
             throw new IllegalArgumentException("No input file given (use --file <products.jsonl>)");
         }
         return new CliOptions(help, file, cassandraHost, cassandraPort, datacenter, keyspace,
-                openSearchUrl, index, recreate);
+                openSearchUrl, index, recreate, directWriteToOpenSearch);
     }
 
     private static String requireValue(String[] args, int index, String option) {

@@ -30,10 +30,15 @@ final class CassandraCatalog {
 
     private final CqlSession session;
     private final String keyspace;
+    private final String indexName;
+    private final boolean directWriteToOpenSearch;
 
-    CassandraCatalog(CqlSession session, String keyspace) {
+    CassandraCatalog(CqlSession session, String keyspace, String indexName,
+            boolean directWriteToOpenSearch) {
         this.session = session;
         this.keyspace = keyspace;
+        this.indexName = indexName;
+        this.directWriteToOpenSearch = directWriteToOpenSearch;
     }
 
     void ensureSchema() {
@@ -43,6 +48,17 @@ final class CassandraCatalog {
                 + "id uuid PRIMARY KEY, name text, description text, category text,"
                 + " tags set<text>, price decimal, image text, species text, stock int,"
                 + " created_at timestamp)");
+
+        if (!directWriteToOpenSearch) {
+            // Create the custom OpenSearchIndex in Cassandra, and Cassandra will write to
+            // OpenSearch
+            // when the data is written to Cassandra
+            session.execute("CREATE CUSTOM INDEX IF NOT EXISTS h2o_products ON " + keyspace
+                    + ".products ()"
+                    + "USING 'OpenSearchIndex' with OPTIONS = {'createIndexIfNotExists':'false', 'indexName':'"
+                    + indexName + "'}");
+        }
+
         session.execute("CREATE TABLE IF NOT EXISTS " + keyspace + ".products_by_category ("
                 + "category text, name text, id uuid, description text, tags set<text>,"
                 + " price decimal, image text, species text, stock int,"

@@ -91,10 +91,13 @@ public final class ProductIngestCli {
                         new InetSocketAddress(options.cassandraHost(), options.cassandraPort()))
                 .withLocalDatacenter(options.datacenter()).build()) {
 
-            CassandraCatalog catalog = new CassandraCatalog(session, options.keyspace());
-            catalog.ensureSchema();
+            CassandraCatalog catalog = new CassandraCatalog(session, options.keyspace(),
+                    options.index(), options.directWriteToOpenSearch());
             OpenSearchCatalog search = new OpenSearchCatalog(options.openSearchUrl(),
-                    options.index(), mapper);
+                    options.index(), mapper, options.directWriteToOpenSearch());
+
+            search.ensureIndex();
+            catalog.ensureSchema();
 
             if (options.recreate()) {
                 // Truncate the tables and drop the index so the mapping is rebuilt cleanly.
@@ -102,7 +105,6 @@ public final class ProductIngestCli {
                 catalog.truncate();
                 search.deleteIndex();
             }
-            search.ensureIndex();
 
             PreparedStatement insertProduct = catalog.prepareInsertProduct();
             PreparedStatement insertByCategory = catalog.prepareInsertByCategory();
